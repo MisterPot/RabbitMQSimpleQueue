@@ -1,0 +1,55 @@
+version: '3'
+services:
+
+    rabbitmq:
+        image: "rabbitmq:3.8.15-rc.2-management"
+        ports:
+            - "5672:5672"
+            - "15672:15672"
+
+        healthcheck:
+            test: ["CMD", "rabbitmqctl", "ping"]
+            interval: 10s
+            retries: 3
+            timeout: 30s
+
+    bot:
+        tty: true
+        image: "python:3.8.18-alpine3.17"
+        command: >
+            sh -c "
+                pip install -r /app/requirements.txt &&
+                python /app/bot.py
+            "
+        depends_on:
+            rabbitmq:
+                condition: service_healthy
+
+        volumes:
+            - ./bot.py:/app/bot.py
+            - ./.env:/app/.env
+            - ./requirements.txt:/app/requirements.txt
+            - ./cons.py:/app/cons.py
+
+        links:
+            - rabbitmq
+
+    cons:
+        tty: true
+        image: "python:3.8.18-alpine3.17"
+        command: >
+            sh -c "
+                pip install -r /app/requirements.txt &&
+                python /app/cons.py
+            "
+        depends_on:
+            rabbitmq:
+                condition: service_healthy
+
+        volumes:
+            - ./cons.py:/app/cons.py
+            - ./.env:/app/.env
+            - ./requirements.txt:/app/requirements.txt
+
+        links:
+            - rabbitmq
